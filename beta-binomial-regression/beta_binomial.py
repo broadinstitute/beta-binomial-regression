@@ -3,6 +3,7 @@ import scanpy as sc
 import numpy as np
 import torch
 import os
+import re
 
 from math import ceil
 
@@ -124,6 +125,46 @@ def fit_beta_binom(cell_counts, bg_alphas=None, bg_betas=None, num_bg=0, maxiter
 
 
 ## Regression Equations
+def generate_tap_features(cell_counts, guide_map, delete=True, group=False):
+    """ This function is capable of handling tap_seq data (higher MOI) for generating the features matrix used in BBR.
+    See generate_features below.
+    WARNING: Will need to be adjusted/changed depending on what your 'negative control' guides are called in the experiment.
+    """
+    num_cells, num_genes = cell_counts.shape
+    print(num_cells, num_genes)
+    guide_list = set(guide_map.values())
+    if group:
+        replacements = [(r'safe.*', "nonguide"), (r'negative.*',"nonguide")]        
+        for orig, repl in replacements:
+            guide_list = np.unique(np.array(list(map(lambda v: re.sub(orig, repl, v) , guide_list))))
+    
+    feature_codes, uni_feature_names = pd.factorize(guide_list)
+    
+    binarized_features = np.empty(((num_cells), len(feature_codes)))
+    
+    ## can this step be sped up/it should be
+    for i, guide_type in enumerate(uni_feature_names):
+        if guide_type == 'nonguide':
+            binarized_features[:, i] = (cell_counts.obs.target_names.str.contains('negative_control|safe_targeting', regex=True)).astype(int)
+        else:
+            binarized_features[:, i] = cell_counts.obs.target_names.str.contains(guide_type).astype(int)
+    
+    # Delete NC, nontarget, and safe from the features matrix
+    if delete:
+        if group:
+            to_drop = ['nonguide']
+        else:
+            to_drop = ['negative_control', 'safe_targeting']
+        drop_idx = np.where(np.isin(uni_feature_names, to_drop))[0]
+        binarized_features = np.delete(binarized_features, drop_idx, axis=1)
+        uni_feature_names = np.delete(uni_feature_names, drop_idx)
+
+    # add in extra features "log(num_features)", "log(total_umis)", "log(total_gene_counts)"
+    features = torch.tensor(binarized_features).double()
+    
+    # don't normalize upon return
+    return uni_feature_names, features
+
 
 def normalize(features):
         return (features - features.mean(axis=0)) / features.std(axis=0)
