@@ -238,8 +238,7 @@ def generate_features(cell_counts, cc=True, working_guides=True, permuted=False)
     return unique_features[unique_features != to_drop], features
 
 
-
-def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, subset=False, genelist=None, norm=False, weights=None, int_old=None, permuted=False):
+def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, subset=False, genelist=None, norm=False, weights=None, int_old=None, features=None, features_order=None, permuted=False):
     """ 
     Beta-Binomial Regression for scRNA-seq Data.
 
@@ -279,9 +278,12 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, 
 
     norm: bool, indicating if method should use normalized features. Default false, to keep features matrix 'one hot'
 
-    weights, int_old: Torch.tensor objects corresponding to the weight and intercept tensors in the regression.
+    weights, int_old, features, features_order: Torch.tensor objects corresponding to the weight, intercept, or features tensors in the regression.
 
-        These tensors are only passed if one does not want the tensors to be initialized to zero in the regression.
+        weights, int_old: These tensors are only passed if one does not want the tensors to be initialized to zero in the regression.
+
+        features, features_order: These tensors are directly passed if we do not want the standard feature generation to be called. 
+            For example, a tap seq features matrix (still needs to be right size, format, etc.) can be passed after calling generate_tap_features() on the same cell_counts object passed to this function
 
     permuted: bool, indicating if the regression should be run using the permuted guide counts.
 
@@ -342,7 +344,8 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, 
 
     num_cells, num_genes = counts.shape
 
-    features_order, features = generate_features(cell_counts, working_guides=True, permuted=permuted)
+    if features is None:
+        features_order, features = generate_features(cell_counts, working_guides=True, permuted=permuted)
     features = features.float()
     
     if norm:
