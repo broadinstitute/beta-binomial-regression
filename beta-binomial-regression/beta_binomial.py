@@ -19,7 +19,9 @@ from pyro.distributions import GammaPoisson
 
 
 
-## Likelihood Equations
+###########################################################################
+#  Likelihood Equation Functions
+###########################################################################
 
 def _log_beta(x, y):
     return torch.lgamma(x) + torch.lgamma(y) - torch.lgamma(x + y)
@@ -41,24 +43,31 @@ def betabinomial_logprob_pergene(counts, alpha, beta, total_count=None):
             _log_beta(alpha, beta)).sum(axis=0)
 
 
-## Beta Binomial Distribution Equation
+###########################################################################
+#  Beta Binomial Distribution Function
+###########################################################################
 
 def fit_beta_binom(cell_counts, bg_alphas=None, bg_betas=None, num_bg=0, maxiter=10, matrix=False):
     """ Fit Beta-Binomial Distribution to the Data
     
     Used to get distribution fits for background cells, that serve as our intiial guess in the regression
     Run on NC cells only, for example, to get baseline signal of each gene 
-    PARAMETERS:
-        # cell_counts: ANNDATA object or cell counts matrix pulled from anndata object
-        # bg_alphas, bg_betas: background beta distribution for fake cells we want to introduce
-        # num_bg: # fake cells to introduce
-        # matrix: defines cell_counts type, default false (cell_counts should be anndata)
 
-    RETURNS: 
-        # alphas, betas 
-            # 1 x gene matrices with fitted alphas and betas. They serve as parameters for a beta distribution describing each gene
-        # initial_betas
-            # 1 x gene matrix with initial betas guessed using Minka math
+    PARAMETERS 
+    -----------
+        cell_counts: ANNDATA object or cell counts matrix pulled from anndata object
+
+        bg_alphas, bg_betas: background beta distribution for fake cells we want to introduce
+
+        num_bg: # fake cells to introduce
+
+        matrix: defines cell_counts type, default false (cell_counts should be anndata)
+
+    RETURNS
+    -------
+        alphas, betas: 1 x gene matrices with fitted alphas and betas. They serve as parameters for a beta distribution describing each gene
+
+        initial_betas: 1 x gene matrix with initial betas guessed using Minka math
     """
 
     # extract counts matrix, and append fake BG cells
@@ -124,7 +133,10 @@ def fit_beta_binom(cell_counts, bg_alphas=None, bg_betas=None, num_bg=0, maxiter
     return alphas, betas, initial_betas
 
 
-## Regression Equations
+###########################################################################
+#  Beta Binomial Regression Functions
+###########################################################################
+
 def generate_tap_features(cell_counts, guide_map, delete=True, group=False):
     """ This function is capable of handling tap_seq data (higher MOI) for generating the features matrix used in BBR.
     See generate_features below.
