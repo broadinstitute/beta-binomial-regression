@@ -171,8 +171,10 @@ def generate_tap_features(cell_counts, guide_map, delete=True, group=False):
         binarized_features = np.delete(binarized_features, drop_idx, axis=1)
         uni_feature_names = np.delete(uni_feature_names, drop_idx)
 
-    # add in extra features "log(num_features)", "log(total_umis)", "log(total_gene_counts)"
+    # add in extra features "log(num_features)"
+    binarized_features = np.column_stack((binarized_features, np.log(cell_counts.obs.num_features)))
     features = torch.tensor(binarized_features).double()
+    uni_feature_names = np.hstack((uni_feature_names, ["log(num_features)"]))
     
     # don't normalize upon return
     return uni_feature_names, features
