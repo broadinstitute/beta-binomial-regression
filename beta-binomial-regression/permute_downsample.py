@@ -1,23 +1,49 @@
-import pandas as pd
 import numpy as np
-import scanpy as sc
 import anndata as ad
+from math import isclose
 
+def get_downsampled_counts(day_counts, keep, ds_method='full'):
+    if ds_method == 'full':
+        downsampled = day_counts.copy()
+        print(downsampled.X.data)
+        
+        sampling = np.random.binomial(day_counts.X.data.astype(int), keep)
+        downsampled.X.data = sampling
+        downsampled_counts = downsampled
+        cells_downsampled = downsampled_counts.obs.index
+    
+    elif ds_method == 'half_cells':
+        assert(keep > .5)
+        kd = (1 - keep)
+        ds = (1 - 2*kd)
+        #downsampled = genesampling.copy()
+        half_cells = day_counts.obs.sample(frac=.5).index
+        ds_half = day_counts[half_cells, :].copy()
+        reg_half = day_counts[~day_counts.obs.index.isin(half_cells), :].copy()
+        sampling = np.random.binomial(ds_half.X.data.astype(int), ds)
+        ds_half.X.data = sampling
+        downsampled_counts = ad.concat((ds_half, reg_half), axis=0, merge='same')
+        cells_downsampled = half_cells
+        
+    elif ds_method == 'zero_out':
+        kd = (1 - keep)
+        kd_cells = day_counts.obs.sample(frac=kd).index
+        ds_kd_cells = day_counts[kd_cells, :].copy()
+        no_ds_cells = day_counts[~day_counts.obs.index.isin(kd_cells), :].copy()
+        sampling = np.random.binomial(ds_kd_cells.X.data.astype(int), 0)
+        ds_kd_cells.X.data = sampling
+        downsampled_counts = ad.concat((ds_kd_cells, no_ds_cells), axis=0, merge='same')
+        cells_downsampled = kd_cells
 
-
-def get_downsampled_counts(day_counts, ds):
-
-    downsampled = day_counts.copy()
-    print(downsampled.X.data)
-    sampling = np.random.binomial(day_counts.X.data.astype(int), ds)
-    downsampled.X.data = sampling
-    downsampled_counts = downsampled
+    else:
+        print('No valid ds_method object, valid methods are: "full" or "half_cells" or "zero_out"')
+    
     print(downsampled_counts.X.data)
     print(day_counts.X.A == downsampled_counts.X.A)
 
-    return downsampled_counts
+    return downsampled_counts, cells_downsampled
 
-def permute_and_downsample(counts, keep, genelist=None):
+def permute_and_downsample(counts, keep, genelist=None, ds_method='full'):
     counts_perm = counts.copy()
     counts_perm.obs['perm_feature_call'] = counts_perm.obs.feature_call.sample(frac=1).values
 
@@ -37,7 +63,7 @@ def permute_and_downsample(counts, keep, genelist=None):
         if np.sum(genesampling.var.total_counts > 80000) <= 1:
             high_count_genes = counts_perm_nonc[:, counts_perm_nonc[:, counts_perm_nonc.var.total_counts > 80000].var.sample(n=2).index]
             genesampling = ad.concat((genesampling, high_count_genes), axis=1, merge='same')
-
+    
     # or, pass "genelist", a list of genes you know you want to downsample
     else:
         genesampling = counts_perm_nonc[:, genelist]
@@ -45,10 +71,22 @@ def permute_and_downsample(counts, keep, genelist=None):
     gene_indicator = np.in1d(counts_perm_nonc.var_names, genesampling.var_names)
 
     # downsample those counts
-    downsampled_perm = ad.concat((counts_perm_nonc[:, ~gene_indicator], get_downsampled_counts(genesampling, keep)), axis=1, merge='same')
-    # concat those counts with the 'NC & no working guide' cells
+    downsampled_counts, cells_downsampled = get_downsampled_counts(genesampling, keep, ds_method=ds_method)
+    
+    # GENE CONCAT: concatenate the downsampled counts for the selected genes with the other gene counts for those cells with guides
+    downsampled_perm = ad.concat((counts_perm_nonc[:, ~gene_indicator], downsampled_counts), axis=1, merge='same')    
+    # NC CELL CONCAT: concat those counts with the 'NC & no working guide' cells
     counts_perm_ds = ad.concat((downsampled_perm, counts_perm[counts_perm.obs.perm_working_features == 'No_working_guide']), merge='same')
+
+    # Add indicators for if a cell and gene are downsampled
     counts_perm_ds.var['Downsampled'] = [gene in genesampling.var.index for gene in counts_perm_ds.var.index]
+    counts_perm_ds.obs['Downsampled'] = [cell in cells_downsampled for cell in counts_perm_ds.obs.index]
+    
+    print(np.nanmean(downsampled_perm[:, genelist].X.A / genesampling.X.A))
+    assert isclose(np.nanmean(downsampled_perm[:, genelist].X.A / genesampling.X.A), keep, abs_tol=1e-2)
 
+    
+    # Your downsampled counts in total will be in counts_perm_ds
+    # genesampling is the original counts for all of the genes that we downsample BEFORE DOWNSAMPLING
+    
     return counts_perm_ds, counts_perm_nonc, genesampling
-
