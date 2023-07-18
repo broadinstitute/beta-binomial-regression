@@ -412,12 +412,14 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, 
         loss.backward(retain_graph=True)
         clip_grad_value_([w, delta_s, intercept], 3)
         optimizer.step()
-        loss_plt.append(loss.cpu().detach())
+        loss_plt.append(loss.cpu().detach().numpy())
 
     first_derivative = grad(loss, w, create_graph=True)[0]
     second_derivative = grad(first_derivative.sum(), w)[0]
 
-    return (w.cpu(), new_mean.cpu(), new_s.cpu(), delta_s.cpu(), loss_plt, intercept.cpu(), features.cpu(), features_order, second_derivative.cpu())
+    # [v.cpu().detach().numpy() for v in [w, new_mean, delta_s, ...]]
+    return [v.cpu().detach().numpy() for v in [w, new_mean, new_s, delta_s, intercept, features, second_derivative]] + [loss_plt, features_order]
+
 
 # get kde plots from w and get std
 
