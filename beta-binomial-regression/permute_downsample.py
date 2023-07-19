@@ -3,10 +3,11 @@ import anndata as ad
 from math import isclose
 
 def get_downsampled_counts(day_counts, keep, ds_method='full'):
+    # always print what original data looks like
+    print(day_counts.X.data)
+
     if ds_method == 'full':
-        downsampled = day_counts.copy()
-        print(downsampled.X.data)
-        
+        downsampled = day_counts.copy()        
         sampling = np.random.binomial(day_counts.X.data.astype(int), keep)
         downsampled.X.data = sampling
         downsampled_counts = downsampled
