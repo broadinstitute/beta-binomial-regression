@@ -17,7 +17,7 @@ def get_downsampled_counts(day_counts, keep, ds_method='full'):
         kd = (1 - keep)
         ds = (1 - 2*kd)
         #downsampled = genesampling.copy()
-        half_cells = day_counts.obs.sample(frac=.5).index
+        half_cells = day_counts.obs.groupby('perm_working_features').sample(frac=.5).index
         ds_half = day_counts[half_cells, :].copy()
         reg_half = day_counts[~day_counts.obs.index.isin(half_cells), :].copy()
         sampling = np.random.binomial(ds_half.X.data.astype(int), ds)
@@ -27,7 +27,7 @@ def get_downsampled_counts(day_counts, keep, ds_method='full'):
         
     elif ds_method == 'zero_out':
         kd = (1 - keep)
-        kd_cells = day_counts.obs.sample(frac=kd).index
+        kd_cells = day_counts.obs.groupby('perm_working_features').sample(frac=kd).index
         ds_kd_cells = day_counts[kd_cells, :].copy()
         no_ds_cells = day_counts[~day_counts.obs.index.isin(kd_cells), :].copy()
         sampling = np.random.binomial(ds_kd_cells.X.data.astype(int), 0)
