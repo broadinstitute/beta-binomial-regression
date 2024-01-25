@@ -14,7 +14,7 @@ def get_downsampled_counts(day_counts, keep, ds_method='full'):
         cells_downsampled = downsampled_counts.obs.index
 
     elif ds_method == 'half_cells':
-        assert(keep > .5)
+        assert(keep > .5), "Half Cells method only works when keep > .85!"
         # kd percentage is 1 - keep
         kd = (1 - keep)
         # we will downsample at a rate of 2*KD percentage in 50% of cells
@@ -89,7 +89,7 @@ def permute_and_downsample(counts, keep, genelist=None, ds_method='full'):
     counts_perm_ds.obs['Downsampled'] = [cell in cells_downsampled for cell in counts_perm_ds.obs.index]
 
     print(np.nanmean(downsampled_perm[:, genelist].X.A / genesampling.X.A))
-    assert isclose(np.nanmean(downsampled_perm[:, genelist].X.A / genesampling.X.A), keep, abs_tol=1e-2)
+    assert isclose(np.nanmean(downsampled_perm[:, genelist].X.A / genesampling.X.A), keep, abs_tol=1e-2), "Oops, run again. Our downsampling didn't get close enough to your desired percentage."
 
 
     # Your downsampled counts in total will be in counts_perm_ds
