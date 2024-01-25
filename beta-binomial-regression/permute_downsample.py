@@ -48,12 +48,14 @@ def get_downsampled_counts(day_counts, keep, ds_method='full'):
 
     return downsampled_counts, cells_downsampled
 
-def permute_and_downsample(counts, keep, genelist=None, ds_method='full'):
+def permute_and_downsample(counts, keep, guide_list, genelist=None, ds_method='full'):
+    # guide_list is a single column df with all of the guides you consider working (what you want to use in your downsample)
+        # Each guide has to have a direct match to a guide name in your feature_call column
     counts_perm = counts.copy()
     counts_perm.obs['perm_feature_call'] = counts_perm.obs.feature_call.sample(frac=1).values
 
-    work_list = "TBXT_1,TBXT_2,TBXT_3,TBXT_10,HAND1_8,HAND1_2,HAND1_10,HAND1_5,HAND1_3,HAND1_7,HAND1_4,HAND1_1,SOX2_1543,SOX2_1553,YBX1_823,YBX1_821,ID1_9,ID1_4,ID1_10,ID1_8,ID1_5,ID1_3,ID1_1,ID1_7,GATA3_9,GATA3_2,GATA3_1,GATA3_3,GATA3_4,GATA3_5,GATA3_7,HHEX_4,HHEX_7,HHEX_1,HHEX_6,HHEX_2,HHEX_9,HHEX_10,HHEX_3,HNF1B_1,HNF1B_3,HNF1B_6,HNF1B_10,HNF1B_5,HNF1B_2,HNF1B_7,HNF1B_8,HNF1B_4"
-    working_cells = counts_perm.obs.perm_feature_call.isin(work_list.split(','))
+    # work_list = "TBXT_1,TBXT_2,TBXT_3,TBXT_10,HAND1_8,HAND1_2,HAND1_10,HAND1_5,HAND1_3,HAND1_7,HAND1_4,HAND1_1,SOX2_1543,SOX2_1553,YBX1_823,YBX1_821,ID1_9,ID1_4,ID1_10,ID1_8,ID1_5,ID1_3,ID1_1,ID1_7,GATA3_9,GATA3_2,GATA3_1,GATA3_3,GATA3_4,GATA3_5,GATA3_7,HHEX_4,HHEX_7,HHEX_1,HHEX_6,HHEX_2,HHEX_9,HHEX_10,HHEX_3,HNF1B_1,HNF1B_3,HNF1B_6,HNF1B_10,HNF1B_5,HNF1B_2,HNF1B_7,HNF1B_8,HNF1B_4"
+    working_cells = counts_perm.obs.perm_feature_call.isin(guide_list.values.squeeze())
     counts_perm.obs["perm_working_features"] = np.nan
     counts_perm.obs.perm_working_features[working_cells] = counts_perm.obs.perm_feature_call[working_cells].str.split('_',expand=True)[0]
     counts_perm.obs.perm_working_features[~working_cells] = 'No_working_guide'
