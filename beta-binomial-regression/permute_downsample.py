@@ -1,6 +1,7 @@
 import numpy as np
 import anndata as ad
 from math import isclose
+import scanpy as sc
 
 def get_downsampled_counts(day_counts, keep, ds_method='full'):
     # always print what original data looks like
@@ -93,6 +94,8 @@ def permute_and_downsample(counts, keep, guide_list, genelist=None, ds_method='f
     print(np.nanmean(downsampled_perm[:, genelist].X.A / genesampling.X.A))
     assert isclose(np.nanmean(downsampled_perm[:, genelist].X.A / genesampling.X.A), keep, abs_tol=1e-2), "Oops, run again. Our downsampling didn't get close enough to your desired percentage."
 
+    # recalculate total counts per cell and gene metrics
+    sc.pp.calculate_qc_metrics(counts_perm_ds, percent_top=None, log1p=False, inplace=True)
 
     # Your downsampled counts in total will be in counts_perm_ds
     # genesampling is the original counts for all of the genes that we downsample BEFORE DOWNSAMPLING
