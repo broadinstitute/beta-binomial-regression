@@ -13,7 +13,7 @@ def make_bbr_df(weights, counts, guide_order, cc=True, subset=False, genelist=No
     regr_scores = pd.DataFrame(index=genelist if subset else counts.var_names, data=weights.T,
                                 columns=np.hstack((guide_order, ["S_score", "G2M_score"])) if cc else np.hstack((guide_order)))
 
-    if subset:
+    if orig_counts is not None:
         # need to make sure we scale to original counts
         normalizer = orig_counts.copy()
     else:
@@ -67,16 +67,19 @@ def run_whole_bbr(counts, group_name, split=False, priorval=.1, genelist=None, p
         weights, _, _, _, _, features, second_deriv, loss_plt, features_order = regression_output
         subset_counts = counts.copy()[:, genelist]
         pvalues_df = get_pvalues_df(second_deriv, weights, features_order, genelist)
-        bbr_df = make_bbr_df(weights, subset_counts, features_order, subset=True, genelist=genelist, orig_counts=counts if no_ds_counts is None else no_ds_counts)
+        bbr_df = make_bbr_df(weights, subset_counts, features_order, subset=True, genelist=genelist, orig_counts=None if no_ds_counts is None else no_ds_counts)
         return bbr_df, pvalues_df
 
     else:
-        regression_ouptut = sgd_optimizer(counts, a_NC, b_NC, lr=0.001, maxiter=3000, priorval=priorval, permuted=permute)
+        regression_ouptut = sgd_optimizer(counts, a_NC, b_NC, lr=0.001, maxiter=3000, priorval=priorval, permuted=permuted)
         weights, _, _, _, _, features, second_deriv, loss_plt, features_order = regression_output
 
 
     pvalues_df = get_pvalues_df(second_deriv, weights, features_order, counts.var.index)
 
+    # TODO: Potentially, change things around here, so users can pass subset counts (no_ds_counts changed to just alt_counts or something)
+    # and we just pass to this function similarly to how we do above
+    # might be no reason to not just add this now, but idk I'll leave it as is
     bbr_df = make_bbr_df(weights, counts, features_order)
 
     #bbr_df.to_csv(f'data/WTC_100TFs_10x_{group_name}_bbr_log2fc_results.csv')
