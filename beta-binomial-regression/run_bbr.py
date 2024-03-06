@@ -36,7 +36,7 @@ def get_pvalues_df(second_deriv, w, features_order, genes):
     return pvalues_df
 
 
-def run_whole_bbr(counts, group_name, split=False, priorval=.1, genelist=None, permuted=False, no_ds_counts=None):
+def run_whole_bbr(counts, group_name, split=False, priorval=.1, genelist=None, permuted=False, no_ds_counts=None, cc=True):
     # group_name = 'D0' or 'D2'... etc.
     torch.set_default_tensor_type('torch.FloatTensor')
 
@@ -51,8 +51,8 @@ def run_whole_bbr(counts, group_name, split=False, priorval=.1, genelist=None, p
 
     if split:
         # for split, we don't give it a passed genelist, instead we automatically split the genes into two (approximate halves for our data)
-        regression_output = sgd_optimizer(counts, a_NC, b_NC, lr=0.001, maxiter=3000, priorval=priorval, subset=True, genelist=counts.var_names[0:5000], permuted=permuted)
-        regression_output_2 = sgd_optimizer(counts, a_NC, b_NC, lr=0.001, maxiter=3000, priorval=priorval, subset=True, genelist=counts.var_names[5000:], permuted=permuted)
+        regression_output = sgd_optimizer(counts, a_NC, b_NC, lr=0.001, maxiter=3000, priorval=priorval, subset=True, genelist=counts.var_names[0:5000], permuted=permuted, cc=cc)
+        regression_output_2 = sgd_optimizer(counts, a_NC, b_NC, lr=0.001, maxiter=3000, priorval=priorval, subset=True, genelist=counts.var_names[5000:], permuted=permuted, cc=cc)
 
         weights_1, _, _, _, _, features_1, second_deriv_1, loss_plt_1, features_order = regression_output
         weights_2, _, _, _, _, features_2, second_deriv_2, loss_plt_2, features_order_2 = regression_output_2
@@ -63,7 +63,7 @@ def run_whole_bbr(counts, group_name, split=False, priorval=.1, genelist=None, p
     # for example, genelist could be the downsampled genes only
 
     elif genelist is not None:
-        regression_output = sgd_optimizer(counts, a_NC, b_NC, lr=0.001, maxiter=3000, priorval=priorval, subset=True, genelist=genelist, permuted=permuted)
+        regression_output = sgd_optimizer(counts, a_NC, b_NC, lr=0.001, maxiter=3000, priorval=priorval, subset=True, genelist=genelist, permuted=permuted, cc=cc)
         weights, _, _, _, _, features, second_deriv, loss_plt, features_order = regression_output
         subset_counts = counts.copy()[:, genelist]
         pvalues_df = get_pvalues_df(second_deriv, weights, features_order, genelist)
@@ -71,7 +71,7 @@ def run_whole_bbr(counts, group_name, split=False, priorval=.1, genelist=None, p
         return bbr_df, pvalues_df
 
     else:
-        regression_ouptut = sgd_optimizer(counts, a_NC, b_NC, lr=0.001, maxiter=3000, priorval=priorval, permuted=permuted)
+        regression_ouptut = sgd_optimizer(counts, a_NC, b_NC, lr=0.001, maxiter=3000, priorval=priorval, permuted=permuted, cc=cc)
         weights, _, _, _, _, features, second_deriv, loss_plt, features_order = regression_output
 
 

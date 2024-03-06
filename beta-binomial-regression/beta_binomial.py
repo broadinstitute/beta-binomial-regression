@@ -49,11 +49,11 @@ def betabinomial_logprob_pergene(counts, alpha, beta, total_count=None):
 
 def fit_beta_binom(cell_counts, bg_alphas=None, bg_betas=None, num_bg=0, maxiter=10, matrix=False):
     """ Fit Beta-Binomial Distribution to the Data
-    
-    Used to get distribution fits for background cells, that serve as our intiial guess in the regression
-    Run on NC cells only, for example, to get baseline signal of each gene 
 
-    PARAMETERS 
+    Used to get distribution fits for background cells, that serve as our intiial guess in the regression
+    Run on NC cells only, for example, to get baseline signal of each gene
+
+    PARAMETERS
     -----------
         cell_counts: ANNDATA object or cell counts matrix pulled from anndata object
 
@@ -146,21 +146,21 @@ def generate_tap_features(cell_counts, guide_map, delete=True, group=False):
     print(num_cells, num_genes)
     guide_list = set(guide_map.values())
     if group:
-        replacements = [(r'safe.*', "nonguide"), (r'negative.*',"nonguide")]        
+        replacements = [(r'safe.*', "nonguide"), (r'negative.*',"nonguide")]
         for orig, repl in replacements:
             guide_list = np.unique(np.array(list(map(lambda v: re.sub(orig, repl, v) , guide_list))))
-    
+
     feature_codes, uni_feature_names = pd.factorize(guide_list)
-    
+
     binarized_features = np.empty(((num_cells), len(feature_codes)))
-    
+
     ## can this step be sped up/it should be
     for i, guide_type in enumerate(uni_feature_names):
         if guide_type == 'nonguide':
             binarized_features[:, i] = (cell_counts.obs.target_names.str.contains('negative_control|safe_targeting', regex=True)).astype(int)
         else:
             binarized_features[:, i] = cell_counts.obs.target_names.str.contains(guide_type).astype(int)
-    
+
     # Delete NC, nontarget, and safe from the features matrix
     if delete:
         if group:
@@ -175,7 +175,7 @@ def generate_tap_features(cell_counts, guide_map, delete=True, group=False):
     binarized_features = np.column_stack((binarized_features, np.log(cell_counts.obs.num_features)))
     features = torch.tensor(binarized_features).double()
     uni_feature_names = np.hstack((uni_feature_names, ["log(num_features)"]))
-    
+
     # don't normalize upon return
     return uni_feature_names, features
 
@@ -188,15 +188,15 @@ def generate_features(cell_counts, cc=True, working_guides=True, permuted=False)
     """ Generate the feature matrix used in regression
     Called directly in the regression method
 
-    PARAMETERS 
+    PARAMETERS
     -----------
-    
+
     cell_counts: An AnnData object with n_obs × n_vars (cells x genes)
 
     cc: A bool, indicating if features should include cell cycle
 
-    working_guides: A bool, indicating if features should be indicated by working guides only 
-    
+    working_guides: A bool, indicating if features should be indicated by working guides only
+
         e.g. SOX2-1 and SOX2-2 are working, but not SOX2-3. If not True, encode all cells that received any sox2 guide as 1
 
     permuted: A bool, indicating if features are called with permuted guide calls (for simulated KD)
@@ -205,12 +205,12 @@ def generate_features(cell_counts, cc=True, working_guides=True, permuted=False)
     -------
 
     Features order: A Categorical index variable, with codes (object 0 in the index) corresponding to the ordering of the guide columns in the feature matrix
-    
+
         WARNING: This label list does not include S_score and G2M score, only guides. S_score and G2M score will always be last in features matrix if included.
 
     Features: A Cell x Feature Matrix
-        
-        First features will be the guides (as ordered in features order object). 
+
+        First features will be the guides (as ordered in features order object).
         Last 2 features will be cell cycle features (S score, G2M score) if cc=True (default True)
         Which sub-guides (eg. SOX2-1, SOX2-2) are included depends on if you want working guides only (as defined by working_features column in anndata) or all guides other than control
         WARNING: this function is very specific to the perturb-seq data as of now. Do not use blindly without knowing what data looks like.
@@ -252,13 +252,13 @@ def generate_features(cell_counts, cc=True, working_guides=True, permuted=False)
     return unique_features[unique_features != to_drop], features
 
 
-def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, subset=False, genelist=None, norm=False, weights=None, int_old=None, features=None, features_order=None, permuted=False):
-    """ 
+def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, subset=False, genelist=None, norm=False, weights=None, int_old=None, features=None, features_order=None, permuted=False, cc=True):
+    """
     Beta-Binomial Regression for scRNA-seq Data.
 
     PARAMETERS
     ----------
-    
+
     cell_counts: An AnnData object with n_obs × n_vars (cells x genes)
 
         At the very least, obs should contain 'feature_call', 'working_features', 'S_score', 'G2M_score' columns.
@@ -266,21 +266,21 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, 
 
         If running on downsampled dataset, var should contain 'Downsampled' column, indicating if a gene has been artificially downsampled
 
-        E.g. cell_counts: 
+        E.g. cell_counts:
             AnnData object with n_obs × n_vars = 6631 × 13577
                 obs: 'n_genes_by_counts', 'total_counts', 'total_counts_mt', 'pct_counts_mt', 'total_counts_ribo', 'pct_counts_ribo', 'feature_call', 'working_features', 'n_genes', 'S_score', 'G2M_score', 'phase', 'perm_feature_call', 'perm_working_features'
                 var: 'gene_ids', 'feature_types', 'genome', 'mt', 'ribo', 'n_cells_by_counts', 'mean_counts', 'pct_dropout_by_counts', 'total_counts', 'Downsampled'
 
     a_NC, b_NC: Two 1 x n_vars matrices containing background distributions for each gene
-    
+
         Based on the alphas and betas fit to the negative control data in fit_beta_binom.
 
     maxiter: An int indicating number of iterations
 
     priorval: A float
-            
+
             Assuming normal distribution, the priorval is our prior distribution sigma value to indicate prior on weights.
-            This value can be obtained by running the regression with a weak prior (for your data, based on its standard deviation. For example, 1, 10), 
+            This value can be obtained by running the regression with a weak prior (for your data, based on its standard deviation. For example, 1, 10),
             and getting the standard deviation of the weights from that regression.
             e.g. priorval = 0.1, 0.3, 0.075
 
@@ -296,7 +296,7 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, 
 
         weights, int_old: These tensors are only passed if one does not want the tensors to be initialized to zero in the regression.
 
-        features, features_order: These tensors are directly passed if we do not want the standard feature generation to be called. 
+        features, features_order: These tensors are directly passed if we do not want the standard feature generation to be called.
             For example, a tap seq features matrix (still needs to be right size, format, etc.) can be passed after calling generate_tap_features() on the same cell_counts object passed to this function
 
     permuted: bool, indicating if the regression should be run using the permuted guide counts.
@@ -310,12 +310,12 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, 
 
     w: A features x genes tensor.cpu object
 
-        This contains the weights for each feature in each gene. Main regression output. 
+        This contains the weights for each feature in each gene. Main regression output.
         Values are in ln scale but can be easily converted to log2 space, to serve as a log2 FC equivalent value
-    
+
     new_mean: A cells x genes tensor.cpu object
 
-        Mean values fit in the regression. 
+        Mean values fit in the regression.
 
     new_s: A 1 x genes tensor.cpu object
 
@@ -326,7 +326,7 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, 
         Final adjustments made to scale values in the regression.
 
     loss_plt: A list of length maxiter
-    
+
         Contains values of loss in each iteration, to be used for plotting to check for convergence
 
     intercept: A 1 x genes tensor.cpu object
@@ -341,7 +341,7 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, 
 
 
     """
-    
+
     means = a_NC  / (a_NC + b_NC)
     s = a_NC + b_NC
 
@@ -359,9 +359,9 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, 
     num_cells, num_genes = counts.shape
 
     if features is None:
-        features_order, features = generate_features(cell_counts, working_guides=True, permuted=permuted)
+        features_order, features = generate_features(cell_counts, cc=cc, working_guides=True, permuted=permuted)
     features = features.float()
-    
+
     if norm:
         features = normalize(features)
 
@@ -394,7 +394,7 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, 
     loss_plt = []
 
     # run the optimization
-    for i in range(maxiter): 
+    for i in range(maxiter):
 
         optimizer.zero_grad()
 
@@ -407,7 +407,7 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, 
         ll = betabinomial_logprob(counts, new_mean * new_s, (1 - new_mean) * new_s, totals)
         loss = - (ll.sum() + prior_w.sum())
         print(loss, abs(w).max(), abs(delta_s).max())
-       
+
         # get rid of retain_graph ?
         loss.backward(retain_graph=True)
         clip_grad_value_([w, delta_s, intercept], 3)
