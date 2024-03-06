@@ -41,9 +41,9 @@ def run_whole_bbr(counts, group_name, split=False, priorval=.1, genelist=None, p
     torch.set_default_tensor_type('torch.FloatTensor')
 
     if permuted:
-        NC_counts = counts[counts.obs.perm_feature_call == 'NC']
+        NC_counts = counts[counts.obs.perm_working_features == 'No_working_guide']
     else:
-        NC_counts = counts[counts.obs.feature_call == 'NC']
+        NC_counts = counts[counts.obs.working_features == 'No_working_guide']
     a_NC, b_NC, _ = fit_beta_binom(NC_counts)
 
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
