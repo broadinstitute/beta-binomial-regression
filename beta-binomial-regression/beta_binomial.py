@@ -288,7 +288,7 @@ def generate_features_generic(counts, delete_names, column='feature_call', cc=Tr
     # this is magical, so much simpler, so much easier, thank you pd str split get dummies <3
     feature_df = counts.obs[column].str.get_dummies(',')
     feature_df.drop(delete_names, axis=1, inplace=True)
-    feature_codes, uni_feature_names = pd.factorize(feature_df.columns)
+    uni_feature_names = feature_df.columns
 
     if cc:
         feature_df['S_score'] = counts.obs.S_score
