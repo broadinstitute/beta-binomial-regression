@@ -251,6 +251,53 @@ def generate_features(cell_counts, cc=True, working_guides=True, permuted=False)
         features = torch.tensor(features_1).double()
     return unique_features[unique_features != to_drop], features
 
+def generate_features_generic(counts, delete_names, column='feature_call', cc=True):
+    """
+    Generate features tensor.
+    This function will work on both low moi and high moi data!
+
+    INPUTS
+    _______________________
+
+    counts: anndata object for bbr
+
+    delete_names: np.array, list of non-targeting guides to delete from feature matrix.
+        If passing column='working_features', this can simply contain 'No_working_guide' or other uniform name for all control guides.
+
+    column: Name of column in counts.obs to use for features. If high MOI, must be comma ',' separated guide names.
+
+    cc: whether or not to include cell cycle features. only works if counts.obs has 'S_score' and 'G2M_score' columns.
+
+    RETURNS
+    _________________________
+
+    Features order: Index variable, corresponding to the ordering of the guide columns in the feature matrix
+
+        WARNING: This label list does not include S_score and G2M score, only guides. S_score and G2M score will always be last in features matrix if included.
+
+    Features: A Cell x Feature Matrix
+
+        First features will be the guides (as ordered in features order object).
+        Last 2 features will be cell cycle features (S score, G2M score) if cc=True (default True)
+        Which sub-guides (eg. SOX2-1, SOX2-2) are included depends on if you want working guides only (as defined by working_features column in anndata) or all guides other than control
+
+        All cell x guide portion of matrix should be 'one hot', meaning each cell has a 1 if it had that guide called else 0
+
+
+    """
+    # this is magical, so much simpler, so much easier, thank you pd str split get dummies <3
+    feature_df = counts.obs[column].str.get_dummies(',')
+    feature_df.drop(delete_names, axis=1, inplace=True)
+    feature_codes, uni_feature_names = pd.factorize(feature_df.columns)
+
+    if cc:
+        feature_df['S_score'] = counts.obs.S_score
+        feature_df['G2M_score'] = counts.obs.G2M_score
+
+    features = torch.tensor(feature_df.values).double()
+
+    return uni_feature_names, features
+
 
 def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, subset=False, genelist=None, norm=False, weights=None, int_old=None, features=None, features_order=None, permuted=False, cc=True):
     """
