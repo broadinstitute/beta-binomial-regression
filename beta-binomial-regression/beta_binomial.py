@@ -77,6 +77,8 @@ def fit_beta_binom(cell_counts, bg_alphas=None, bg_betas=None, num_bg=0, maxiter
         counts = cell_counts.X.A
 
     num_cells, num_genes = counts.shape
+    # TODO: synchronize with version on terra
+    # if totals is none ...
     totals = counts.sum(axis=1, keepdims=True)
 
     if not matrix:
@@ -251,7 +253,7 @@ def generate_features(cell_counts, cc=True, working_guides=True, permuted=False)
         features = torch.tensor(features_1).double()
     return unique_features[unique_features != to_drop], features
 
-def generate_features_generic(counts, delete_names, column='feature_call', cc=True):
+def generate_features_generic(counts, delete_names=None, column='feature_call', cc=True):
     """
     Generate features tensor.
     This function will work on both low moi and high moi data!
@@ -287,7 +289,8 @@ def generate_features_generic(counts, delete_names, column='feature_call', cc=Tr
     """
     # this is magical, so much simpler, so much easier, thank you pd str split get dummies <3
     feature_df = counts.obs[column].str.get_dummies(',')
-    feature_df.drop(delete_names, axis=1, inplace=True)
+    if delete_names is not None:
+        feature_df.drop(delete_names, axis=1, inplace=True)
     uni_feature_names = feature_df.columns
 
     if cc:
@@ -397,6 +400,7 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, 
     print("totals: ", totals)
 
     if subset:
+        # TODO: synchronize with version on terra, that allows for subsetting in the a_NC and b_NC objects prior to running this func.
         geneidx = [cell_counts.var.index.get_loc(item) for item in genelist]
         cell_counts = cell_counts[:, genelist]
         counts = cell_counts.X.A
