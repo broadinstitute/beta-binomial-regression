@@ -253,7 +253,7 @@ def generate_features(cell_counts, cc=True, working_guides=True, permuted=False)
         features = torch.tensor(features_1).double()
     return unique_features[unique_features != to_drop], features
 
-def generate_features_generic(counts, delete_names=None, column='feature_call', cc=True):
+def generate_features_generic(counts, delete_names=None, column='feature_call', cc=True, filter_guides_thresh=None):
     """
     Generate features tensor.
     This function will work on both low moi and high moi data!
@@ -291,6 +291,11 @@ def generate_features_generic(counts, delete_names=None, column='feature_call', 
     feature_df = counts.obs[column].str.get_dummies(',')
     if delete_names is not None:
         feature_df.drop(delete_names, axis=1, inplace=True)
+
+    if filter_guides_thresh is not None:
+        # pass a threshold for # cells a guide has to be in
+        feature_df = feature_df.loc[:, feature_df.sum(axis=0) > filter_guides_thresh]
+
     uni_feature_names = feature_df.columns
 
     if cc:
