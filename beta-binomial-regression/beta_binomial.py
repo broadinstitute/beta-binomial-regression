@@ -117,7 +117,7 @@ def fit_beta_binom(cell_counts, bg_alphas=None, bg_betas=None, num_bg=0, maxiter
     counts = torch.tensor(counts)
 
     for itr in range(maxiter):
-        NLL = - betabinomial_logprob_1(counts, alphas, betas, totals)
+        NLL = - betabinomial_logprob_1(counts, totals, alphas, betas)
         print(f"NegLogLikelihood {NLL.numpy():.4f}")
 
         alpha_old = alphas
