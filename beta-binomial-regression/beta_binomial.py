@@ -45,7 +45,7 @@ def betabinomial_logprob_pergene(counts, alpha, beta, total_count=None):
 
 def betabinomial_logprob_1(value, total_count, alpha, beta):
     return (_log_beta(value + alpha, total_count - value + beta) -
-            _log_beta(alpha, beta)).mean()
+            _log_beta(alpha, beta)).nanmean()
 
 ###########################################################################
 #  Beta Binomial Distribution Function
