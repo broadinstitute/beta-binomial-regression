@@ -43,10 +43,6 @@ def betabinomial_logprob_pergene(counts, alpha, beta, total_count=None):
             _log_beta(alpha, beta)).sum(axis=0)
 
 
-def betabinomial_logprob_1(value, total_count, alpha, beta):
-    return (_log_beta(value + alpha, total_count - value + beta) -
-            _log_beta(alpha, beta)).nanmean()
-
 ###########################################################################
 #  Beta Binomial Distribution Function
 ###########################################################################
@@ -117,7 +113,7 @@ def fit_beta_binom(cell_counts, bg_alphas=None, bg_betas=None, num_bg=0, maxiter
     counts = torch.tensor(counts)
 
     for itr in range(maxiter):
-        NLL = - betabinomial_logprob_1(counts, totals, alphas, betas)
+        NLL = - betabinomial_logprob(counts, alphas, betas, totals).nanmean()
         print(f"NegLogLikelihood {NLL.numpy():.4f}")
 
         alpha_old = alphas
