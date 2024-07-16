@@ -253,6 +253,7 @@ def generate_features(cell_counts, cc=True, working_guides=True, permuted=False)
         features = torch.tensor(features_1).double()
     return unique_features[unique_features != to_drop], features
 
+
 def generate_features_generic(counts, delete_names=None, column='feature_call', cc=True, filter_guides_thresh=None):
     """
     Generate features tensor.

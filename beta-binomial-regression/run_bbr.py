@@ -13,7 +13,7 @@ def make_bbr_df(weights, counts, guide_order, cc=True, subset=False, genelist=No
     regr_scores = pd.DataFrame(index=genelist if subset else counts.var_names, data=weights.T,
                                 columns=np.hstack((guide_order, ["S_score", "G2M_score"])) if cc else np.hstack((guide_order)))
 
-    if orig_counts is not None:
+    if subset:
         # need to make sure we scale to original counts
         normalizer = orig_counts.copy()
     else:
@@ -23,7 +23,6 @@ def make_bbr_df(weights, counts, guide_order, cc=True, subset=False, genelist=No
     regr_scores = regr_scores.merge(df, left_index=True, right_index=True)
 
     Day_compare = regr_scores.reset_index().rename(columns={"index":"gene"})
-    Day_compare['mean_TPM_cat'] = pd.qcut(Day_compare.mean_TPM, q=10, precision=0)
 
     return Day_compare
 
