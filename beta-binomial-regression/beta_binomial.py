@@ -250,7 +250,7 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075,
 
     features, features_order: Torch.tensor objects corresponding to the features tensors in the regression.
         These tensors are directly passed if we do not want the standard feature generation to be called.
-            * For example, user might want to specify min number of cells a guide should be in using the generate_features_generic_function
+            * For example, user might want to specify min number of cells a guide should be in using the generate_features_generic function
 
     permuted: bool, indicating if the regression should be run using the permuted guide counts.
 
@@ -286,7 +286,7 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075,
 
         The intercept values in the regression
 
-    features, features_order: same objects returned by generate_features
+    features, features_order: same objects returned by generate_features_generic
 
     second_derivative: A features x genes tensor.cpu object
 
