@@ -2,27 +2,9 @@ import pandas as pd
 import scanpy as sc
 import torch
 import argparse
+from count_filtering import filter_counts
 from beta_binomial import generate_features_generic, fit_beta_binom, sgd_optimizer
 from run_bbr import make_bbr_df, get_pvalues_df
-
-
-def filter_counts(counts, min_genes=200, min_cells=20):
-    counts.var_names_make_unique()
-    counts.var["mt"] = counts.var_names.str.startswith("MT-")
-    counts.var["ribo"] = counts.var_names.str.startswith(("RPS", "RPL"))
-    sc.pp.calculate_qc_metrics(
-        counts, qc_vars=["mt", "ribo"], percent_top=None, log1p=False, inplace=True
-    )
-    counts = counts[counts.obs["pct_counts_mt"] < 20, :]
-    counts = counts[counts.obs["pct_counts_ribo"] > 10, :]
-    # delete mt or ribo genes
-    counts = counts[:, counts.var.query("not (mt or ribo)").index]
-
-    # Do filtering steps by num cells and genes
-    sc.pp.filter_cells(counts, min_genes=min_genes)
-    sc.pp.filter_genes(counts, min_cells=min_cells)
-
-    return counts
 
 
 def matches(s):

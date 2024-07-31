@@ -3,11 +3,33 @@ import scanpy as sc
 import numpy as np
 
 
+def filter_counts(counts, min_genes=200, min_cells=20):
+    """
+    Most generic filter counts function, adaptable to different starting # cells or genes.
+    Users should default to using this filter function for their data.
+    """
+    counts.var_names_make_unique()
+    counts.var["mt"] = counts.var_names.str.startswith("MT-")
+    counts.var["ribo"] = counts.var_names.str.startswith(("RPS", "RPL"))
+    sc.pp.calculate_qc_metrics(
+        counts, qc_vars=["mt", "ribo"], percent_top=None, log1p=False, inplace=True
+    )
+    counts = counts[counts.obs["pct_counts_mt"] < 20, :]
+    counts = counts[counts.obs["pct_counts_ribo"] > 10, :]
+    # delete mt or ribo genes
+    counts = counts[:, counts.var.query("not (mt or ribo)").index]
+
+    # Do filtering steps by num cells and genes
+    sc.pp.filter_cells(counts, min_genes=min_genes)
+    sc.pp.filter_genes(counts, min_cells=min_cells)
+
+    return counts
+
 pd.options.mode.chained_assignment = None  # default='warn'
 
 ## this should change depending on user input
 work_list = "TBXT_1,TBXT_2,TBXT_3,TBXT_10,HAND1_8,HAND1_2,HAND1_10,HAND1_5,HAND1_3,HAND1_7,HAND1_4,HAND1_1,SOX2_1543,SOX2_1553,YBX1_823,YBX1_821,ID1_9,ID1_4,ID1_10,ID1_8,ID1_5,ID1_3,ID1_1,ID1_7,GATA3_9,GATA3_2,GATA3_1,GATA3_3,GATA3_4,GATA3_5,GATA3_7,HHEX_4,HHEX_7,HHEX_1,HHEX_6,HHEX_2,HHEX_9,HHEX_10,HHEX_3,HNF1B_1,HNF1B_3,HNF1B_6,HNF1B_10,HNF1B_5,HNF1B_2,HNF1B_7,HNF1B_8,HNF1B_4"
-## TODO: input file for work list 
+## TODO: input file for work list
 
 
 def get_cell_cycles(adata):
@@ -103,11 +125,11 @@ def filter_try_all_counts(day_counts, day_CRISPR_counts, work_list, min_genes):
     sc.pp.filter_cells(counts, min_genes=min_genes)
     print(counts)
     cc_counts = counts.copy()
-    
+
     cc = get_cell_cycles(cc_counts)
     if cc:
         counts.obs[["S_score", "G2M_score", "phase"]] = cc_counts.obs[["S_score", "G2M_score", "phase"]]
-    
+
     if CRISPR_counts.feature_call.str.contains("NC").any():
         NC_barcodes = list(set(CRISPR_counts.cell_barcode[CRISPR_counts.feature_call.str.contains("NC")]) & set(counts.obs_names))
         counts.obs.replace(to_replace = r"NC.*", value="NC", regex=True, inplace=True)
@@ -136,5 +158,5 @@ def get_cell_cycles(adata):
     if not set(cell_cycle_genes) & set(s_genes) or not set(cell_cycle_genes) & set(g2m_genes):
         return False
     sc.tl.score_genes_cell_cycle(adata, s_genes=s_genes, g2m_genes=g2m_genes)
-    
+
     return True
