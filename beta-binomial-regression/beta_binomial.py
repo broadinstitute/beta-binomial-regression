@@ -44,7 +44,7 @@ def betabinomial_logprob_pergene(counts, alpha, beta, total_count=None):
 
 
 ###########################################################################
-#  Beta Binomial Distribution Function
+#  Beta Binomial Distribution Function - Background Distributions
 ###########################################################################
 
 def fit_beta_binom(cell_counts, bg_alphas=None, bg_betas=None, num_bg=0, maxiter=10, matrix=False):
@@ -139,119 +139,8 @@ def fit_beta_binom(cell_counts, bg_alphas=None, bg_betas=None, num_bg=0, maxiter
 #  Beta Binomial Regression Functions
 ###########################################################################
 
-def generate_tap_features(cell_counts, guide_map, delete=True, group=False):
-    """ This function is capable of handling tap_seq data (higher MOI) for generating the features matrix used in BBR.
-    See generate_features below.
-    WARNING: Will need to be adjusted/changed depending on what your 'negative control' guides are called in the experiment.
-    """
-    num_cells, num_genes = cell_counts.shape
-    print(num_cells, num_genes)
-    guide_list = set(guide_map.values())
-    if group:
-        replacements = [(r'safe.*', "nonguide"), (r'negative.*',"nonguide")]
-        for orig, repl in replacements:
-            guide_list = np.unique(np.array(list(map(lambda v: re.sub(orig, repl, v) , guide_list))))
-
-    feature_codes, uni_feature_names = pd.factorize(guide_list)
-
-    binarized_features = np.empty(((num_cells), len(feature_codes)))
-
-    ## can this step be sped up/it should be
-    for i, guide_type in enumerate(uni_feature_names):
-        if guide_type == 'nonguide':
-            binarized_features[:, i] = (cell_counts.obs.target_names.str.contains('negative_control|safe_targeting', regex=True)).astype(int)
-        else:
-            binarized_features[:, i] = cell_counts.obs.target_names.str.contains(guide_type).astype(int)
-
-    # Delete NC, nontarget, and safe from the features matrix
-    if delete:
-        if group:
-            to_drop = ['nonguide']
-        else:
-            to_drop = ['negative_control', 'safe_targeting']
-        drop_idx = np.where(np.isin(uni_feature_names, to_drop))[0]
-        binarized_features = np.delete(binarized_features, drop_idx, axis=1)
-        uni_feature_names = np.delete(uni_feature_names, drop_idx)
-
-    # add in extra features "log(num_features)"
-    binarized_features = np.column_stack((binarized_features, np.log(cell_counts.obs.num_features)))
-    features = torch.tensor(binarized_features).double()
-    uni_feature_names = np.hstack((uni_feature_names, ["log(num_features)"]))
-
-    # don't normalize upon return
-    return uni_feature_names, features
-
-
 def normalize(features):
         return (features - features.mean(axis=0)) / features.std(axis=0)
-
-
-def generate_features(cell_counts, cc=True, working_guides=True, permuted=False):
-    """ Generate the feature matrix used in regression
-    Called directly in the regression method
-
-    PARAMETERS
-    -----------
-
-    cell_counts: An AnnData object with n_obs × n_vars (cells x genes)
-
-    cc: A bool, indicating if features should include cell cycle
-
-    working_guides: A bool, indicating if features should be indicated by working guides only
-
-        e.g. SOX2-1 and SOX2-2 are working, but not SOX2-3. If not True, encode all cells that received any sox2 guide as 1
-
-    permuted: A bool, indicating if features are called with permuted guide calls (for simulated KD)
-
-    RETURNS
-    -------
-
-    Features order: A Categorical index variable, with codes (object 0 in the index) corresponding to the ordering of the guide columns in the feature matrix
-
-        WARNING: This label list does not include S_score and G2M score, only guides. S_score and G2M score will always be last in features matrix if included.
-
-    Features: A Cell x Feature Matrix
-
-        First features will be the guides (as ordered in features order object).
-        Last 2 features will be cell cycle features (S score, G2M score) if cc=True (default True)
-        Which sub-guides (eg. SOX2-1, SOX2-2) are included depends on if you want working guides only (as defined by working_features column in anndata) or all guides other than control
-        WARNING: this function is very specific to the perturb-seq data as of now. Do not use blindly without knowing what data looks like.
-            For example, controls are only labeled 'NC' here, and we have a specific list of guides we deem as working
-        All cell x guide portion of matrix should be 'one hot', meaning each cell has a 1 if it had that guide called else 0
-
-    """
-
-
-    if (working_guides):
-        to_drop = 'No_working_guide'
-        if (permuted):
-            feature_codes, unique_features = pd.factorize(cell_counts.obs.perm_working_features)
-        else:
-            feature_codes, unique_features = pd.factorize(cell_counts.obs.working_features)
-    else:
-        to_drop = 'NC'
-        if (permuted):
-            feature_codes, unique_features = pd.factorize(cell_counts.obs.perm_feature_call)
-            cell_threshold = cell_counts.obs.perm_feature_call.value_counts() > 50
-        else:
-            feature_codes, unique_features = pd.factorize(cell_counts.obs.feature_call)
-            cell_threshold = cell_counts.obs.feature_call.value_counts() > 50
-
-    features_1 = label_binarize(feature_codes, classes=np.unique(feature_codes))
-
-    # don't include NC as a feature / non_working guides
-    if not working_guides:
-        features_1 = features_1[:, np.where(unique_features[cell_threshold])[0]]
-        unique_features = unique_features[cell_threshold]
-
-    features_1 = np.delete(features_1, np.where(unique_features == to_drop)[0][0], axis=1)
-    if cc == True:
-        features_2 = np.array(cell_counts.obs.S_score)
-        features_3 = np.array(cell_counts.obs.G2M_score)
-        features = torch.tensor(np.vstack((features_1.T, features_2, features_3)).T)
-    else:
-        features = torch.tensor(features_1).double()
-    return unique_features[unique_features != to_drop], features
 
 
 def generate_features_generic(counts, delete_names=None, column='feature_call', cc=True, filter_guides_thresh=None):
@@ -270,6 +159,9 @@ def generate_features_generic(counts, delete_names=None, column='feature_call', 
     column: Name of column in counts.obs to use for features. If high MOI, must be comma ',' separated guide names.
 
     cc: whether or not to include cell cycle features. only works if counts.obs has 'S_score' and 'G2M_score' columns.
+
+    filter_guide_thresh: Minimum number of cells a guide must be in to be used in the regression. Optional input.
+        (ex. a guide must be in at least 100 cells for sufficient power)
 
     RETURNS
     _________________________
@@ -308,7 +200,11 @@ def generate_features_generic(counts, delete_names=None, column='feature_call', 
     return uni_feature_names, features
 
 
-def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, subset=False, genelist=None, norm=False, weights=None, int_old=None, features=None, features_order=None, permuted=False, cc=True):
+def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075,
+                  lr=.001, subset=False, genelist=None, norm=False,
+                  weights=None, int_old=None, features=None,
+                  features_order=None, permuted=False, cc=True,
+                 numpy=False, sparse=False):
     """
     Beta-Binomial Regression for scRNA-seq Data.
 
@@ -348,12 +244,13 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, 
 
     norm: bool, indicating if method should use normalized features. Default false, to keep features matrix 'one hot'
 
-    weights, int_old, features, features_order: Torch.tensor objects corresponding to the weight, intercept, or features tensors in the regression.
+    weights, int_old: Torch.tensor objects corresponding to the weight, intercept, or features tensors in the regression.
 
         weights, int_old: These tensors are only passed if one does not want the tensors to be initialized to zero in the regression.
 
-        features, features_order: These tensors are directly passed if we do not want the standard feature generation to be called.
-            For example, a tap seq features matrix (still needs to be right size, format, etc.) can be passed after calling generate_tap_features() on the same cell_counts object passed to this function
+    features, features_order: Torch.tensor objects corresponding to the features tensors in the regression.
+        These tensors are directly passed if we do not want the standard feature generation to be called.
+            * For example, user might want to specify min number of cells a guide should be in using the generate_features_generic_function
 
     permuted: bool, indicating if the regression should be run using the permuted guide counts.
 
@@ -401,22 +298,42 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075, lr=.001, 
     means = a_NC  / (a_NC + b_NC)
     s = a_NC + b_NC
 
-    counts = cell_counts.X.A
+    if sparse:
+            counts = cell_counts.X.toarray()
+    elif numpy:
+        counts = cell_counts.X
+    else:
+        # X is not already in numpy object format
+        counts = cell_counts.X.A
+
+    # must calculate totals before doing any subsetting
     totals = counts.sum(axis=1, keepdims=True)
     print("totals: ", totals)
 
     if subset:
-        # TODO: synchronize with version on terra, that allows for subsetting in the a_NC and b_NC objects prior to running this func.
-        geneidx = [cell_counts.var.index.get_loc(item) for item in genelist]
+        # allows for
+        if cell_counts.n_vars == means.shape[1]:
+            geneidx = [cell_counts.var.index.get_loc(item) for item in genelist]
+            means = means[:, geneidx]
+            s = s[:, geneidx]
         cell_counts = cell_counts[:, genelist]
-        counts = cell_counts.X.A
-        means = means[:, geneidx]
-        s = s[:, geneidx]
+
+        # repeat code, not the cleanes, but have to deal with scanpy differences reading 10x
+        if sparse:
+            counts = cell_counts.X.toarray()
+        elif numpy:
+            counts = cell_counts.X
+        else:
+            # X is not already in numpy object format
+            counts = cell_counts.X.A
+
+        assert cell_counts.n_vars == means.shape[1]
 
     num_cells, num_genes = counts.shape
 
     if features is None:
-        features_order, features = generate_features(cell_counts, cc=cc, working_guides=True, permuted=permuted)
+        # assumes data is in 'feature_call' column, separated by commas.
+        features_order, features = generate_features_generic(cell_counts, cc=cc)
     features = features.float()
 
     if norm:
