@@ -203,8 +203,9 @@ def generate_features_generic(counts, delete_names=None, column='feature_call', 
 def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075,
                   lr=.001, subset=False, genelist=None, norm=False,
                   weights=None, int_old=None, features=None,
-                  features_order=None, permuted=False, cc=True,
-                 numpy=False, sparse=False):
+                  features_order=None, cc=True,
+                  numpy=False, sparse=False,
+                  features_column='feature_call', delete_names=None):
     """
     Beta-Binomial Regression for scRNA-seq Data.
 
@@ -213,8 +214,11 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075,
 
     cell_counts: An AnnData object with n_obs × n_vars (cells x genes)
 
-        At the very least, obs should contain 'feature_call', 'working_features', 'S_score', 'G2M_score' columns.
-        Additionally, if running on a permuted data set, obs should contain 'perm_feature_call', 'perm_working_features'.
+        At the very least, obs should contain 'feature_call', column.
+            generate_features_generic assumes features are in 'feature_call'
+
+        Additionally, if running on a permuted data set, obs must contain 'perm_feature_call'
+            and generate_features_generic assumes features are in 'perm_feature_call'
 
         If running on downsampled dataset, var should contain 'Downsampled' column, indicating if a gene has been artificially downsampled
 
@@ -244,6 +248,11 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075,
 
     norm: bool, indicating if method should use normalized features. Default false, to keep features matrix 'one hot'
 
+    numpy, sparse: parameters for handling the .X (actual raw counts matrix) data in the counts anndata object.
+        TODO: deal with scanpy 10x functionality.
+        Scanpy reads 10x scRNA-seq outputs differently depending on version.
+        These parameters allow you to cast your anndata X object to a numpy array, whether sparse or already in array format.
+
     weights, int_old: Torch.tensor objects corresponding to the weight, intercept, or features tensors in the regression.
 
         weights, int_old: These tensors are only passed if one does not want the tensors to be initialized to zero in the regression.
@@ -252,10 +261,9 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075,
         These tensors are directly passed if we do not want the standard feature generation to be called.
             * For example, user might want to specify min number of cells a guide should be in using the generate_features_generic function
 
-    permuted: bool, indicating if the regression should be run using the permuted guide counts.
-
-        This tool is specific and useful for the simulated KD runs, in which we permuted guide calls and knocked down a specific set of genes.
-        Don't use otherwise, as regression will be run on meaningless guide calls.
+    features_column, delete_names: Specific inputs to be passed to generate_features_generic for generating the features.
+        Default values are the same as in generate_features_generic.
+        If a user is running the model on permuted data, user can pass the scrambled guide calls column here.
 
 
     RETURNS
@@ -318,7 +326,7 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075,
             s = s[:, geneidx]
         cell_counts = cell_counts[:, genelist]
 
-        # repeat code, not the cleanes, but have to deal with scanpy differences reading 10x
+        # repeat code, not the cleanest, but have to deal with scanpy differences reading 10x
         if sparse:
             counts = cell_counts.X.toarray()
         elif numpy:
@@ -332,8 +340,9 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075,
     num_cells, num_genes = counts.shape
 
     if features is None:
-        # assumes data is in 'feature_call' column, separated by commas.
-        features_order, features = generate_features_generic(cell_counts, cc=cc)
+        # assumes data is in 'feature_call' column, separated by commas. If permuted data, can pass 'perm_feature_call'
+        features_order, features = generate_features_generic(cell_counts, cc=cc, column=features_column, delete_names=delete_names)
+
     features = features.float()
 
     if norm:

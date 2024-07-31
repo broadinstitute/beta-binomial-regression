@@ -13,6 +13,10 @@ def matches(s):
 
 
 def main():
+    """
+    Entire run through for taking dual-guide 10x outputs and running BBR.
+    Specific to dual guide experiment of 2024 (guide names not generic.)
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-c", dest="counts_h5", help="10x h5 filtered counts", type=str, required=True
@@ -26,9 +30,11 @@ def main():
     )
     args = parser.parse_args()
 
+    # Read in your data
     cts = sc.read_10x_h5(args.counts_h5)
     crispr = pd.read_csv(args.feature_calls)
 
+    # Deal with dual guide set-up
     print("Filtering to dual guide data - cells with exactly 2 guides, that match in guide target.")
     crispr_keep = crispr.query("num_features == 2").copy()
     crispr_keep = crispr_keep[crispr_keep.feature_call.map(matches)].copy()
@@ -39,11 +45,13 @@ def main():
                                                                 regex=True).str.split("_").str[-1])
     crispr_keep["feature_call"] = crispr_keep.feature_call.str.replace("|", ",")
 
+    # Assign features to cells in object
     print("Merging cell feature calls with count matrix.")
     obs_data = cts.obs.merge(crispr_keep.set_index("cell_barcode"), left_index=True, right_index=True)
     cts_keep = cts[obs_data.index, :]
     cts_keep.obs = obs_data
 
+    # Generic filtering
     print(
         "Basic filtering of counts for mito, ribo, min number of expressed genes/cells. \n Min genes=200, Min cells=20."
     )
@@ -56,6 +64,7 @@ def main():
         x if "NC" not in x else "NC" for x in cts_keep_filtered.obs.gene
     ]
 
+    # Generate the features (optional but helpful)
     print("Generate features matrix.")
     # cc always false here
     torch.set_default_tensor_type("torch.cuda.FloatTensor")
@@ -67,6 +76,7 @@ def main():
     torch.set_default_tensor_type("torch.FloatTensor")
     tmp_nc = cts_keep_filtered[cts_keep_filtered.obs.target == "NC"]
 
+    # Filter the counts to require non-zero background counts
     print("Drop any genes that have 0 total counts in NC")
     cts_keep_filtered = cts_keep_filtered[:, tmp_nc.X.toarray().sum(axis=0) > 0]
     print("Dropped ", (tmp_nc.X.toarray().sum(axis=0) == 0).sum(), " genes.")
@@ -92,7 +102,6 @@ def main():
         priorval=1,
         subset=True,
         genelist=genelist,
-        permuted=False,
         cc=False,
         sparse=True,
     )

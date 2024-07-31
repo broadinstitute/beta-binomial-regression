@@ -70,7 +70,7 @@ def run_whole_bbr(
     Example run of an entire BBR regression, given filtered counts.
     This function was specifically developed for our low-moi 8TF perturb experiment.
     The counts anndata object has features assigned based on guides for each TF in the 'working_features' column,
-        as either a guide name or 'No_working_guide'.
+        as either a guide name or 'No_working_guide'. We pass this directly to the optimizer for generating the features matrix.
     There is also code built in for running this on the permuted version of this data, with all
         data in corresponding 'perm_' columns.
 
@@ -113,7 +113,8 @@ def run_whole_bbr(
             priorval=priorval,
             subset=True,
             genelist=counts.var_names[0:5000],
-            permuted=permuted,
+            features_column='perm_working_features' if permuted else 'working_features',
+            delete_names=['No_working_guide'],
             cc=cc,
         )
         regression_output_2 = sgd_optimizer(
@@ -125,7 +126,8 @@ def run_whole_bbr(
             priorval=priorval,
             subset=True,
             genelist=counts.var_names[5000:],
-            permuted=permuted,
+            features_column='perm_working_features' if permuted else 'working_features',
+            delete_names=['No_working_guide'],
             cc=cc,
         )
 
@@ -171,7 +173,8 @@ def run_whole_bbr(
             priorval=priorval,
             subset=True,
             genelist=genelist,
-            permuted=permuted,
+            features_column='perm_working_features' if permuted else 'working_features',
+            delete_names=['No_working_guide'],
             cc=cc,
         )
         weights, _, _, _, _, features, second_deriv, loss_plt, features_order = (
@@ -201,7 +204,8 @@ def run_whole_bbr(
             lr=0.001,
             maxiter=maxiter,
             priorval=priorval,
-            permuted=permuted,
+            features_column='perm_working_features' if permuted else 'working_features',
+            delete_names=['No_working_guide'],
             cc=cc,
         )
         weights, _, _, _, _, features, second_deriv, loss_plt, features_order = (
