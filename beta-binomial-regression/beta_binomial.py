@@ -143,7 +143,7 @@ def normalize(features):
         return (features - features.mean(axis=0)) / features.std(axis=0)
 
 
-def generate_features_generic(counts, delete_names=None, column='feature_call', cc=True, filter_guides_thresh=None):
+def generate_features_generic(counts, delete_names=None, column='feature_call', cc=True, filter_guides_thresh=None, str_split=','):
     """
     Generate features tensor.
     This function will work on both low moi and high moi data!
@@ -181,7 +181,7 @@ def generate_features_generic(counts, delete_names=None, column='feature_call', 
 
     """
     # this is magical, so much simpler, so much easier, thank you pd str split get dummies <3
-    feature_df = counts.obs[column].str.get_dummies(',')
+    feature_df = counts.obs[column].str.get_dummies(str_split)
     if delete_names is not None:
         feature_df.drop(delete_names, axis=1, inplace=True)
 
@@ -197,7 +197,7 @@ def generate_features_generic(counts, delete_names=None, column='feature_call', 
 
     features = torch.tensor(feature_df.values).double()
 
-    return uni_feature_names, features
+    return uni_feature_names, features, feature_df
 
 
 def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075,
@@ -341,9 +341,9 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075,
 
     if features is None:
         # assumes data is in 'feature_call' column, separated by commas. If permuted data, can pass 'perm_feature_call'
-        features_order, features = generate_features_generic(cell_counts, cc=cc, column=features_column, delete_names=delete_names)
+        features_order, features, _ = generate_features_generic(cell_counts, cc=cc, column=features_column, delete_names=delete_names)
 
-    features = features.float()
+    features = features.to(torch.float32).cuda()
 
     if norm:
         features = normalize(features)
@@ -351,13 +351,14 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075,
     num_features = features.shape[1]
 
     # get initial tensors for regression
+    # deliberately change size to int32 and float32 instead of larger types
     w = torch.zeros([num_features, num_genes]).float().cuda()
     delta_s = torch.zeros((1, w.shape[1])).cuda()
     intercept = torch.zeros(delta_s.shape).cuda()
-    means = torch.tensor(means).cuda()
-    s = torch.tensor(s).cuda()
-    counts = torch.tensor(counts).cuda()
-    totals = torch.tensor(totals).cuda()
+    means = torch.tensor(means).float().cuda()
+    s = torch.tensor(s).float().cuda()
+    counts = torch.tensor(counts).int().cuda()
+    totals = torch.tensor(totals).int().cuda()
 
     if weights is not None:
         w = weights.clone().detach()
