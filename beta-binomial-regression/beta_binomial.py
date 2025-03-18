@@ -319,14 +319,14 @@ def sgd_optimizer(cell_counts, a_NC, b_NC, maxiter=100, priorval=.075,
     print("totals: ", totals)
 
     if subset:
-        # allows for
+        # allows for gene subsets
         if cell_counts.n_vars == means.shape[1]:
             geneidx = [cell_counts.var.index.get_loc(item) for item in genelist]
             means = means[:, geneidx]
             s = s[:, geneidx]
         cell_counts = cell_counts[:, genelist]
 
-        # repeat code, not the cleanest, but have to deal with scanpy differences reading 10x
+        # repeat code, not the cleanest, but have to deal with scanpy differences reading 10x data of different releases
         if sparse:
             counts = cell_counts.X.toarray()
         elif numpy:

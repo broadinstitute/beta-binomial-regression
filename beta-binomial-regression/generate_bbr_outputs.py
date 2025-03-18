@@ -72,3 +72,4 @@ def adjust_weights_non_targeting(weights, row_id=-1):
     weights_adj = weights - weights[None, row_id, :]
 
     return weights_adj
+
