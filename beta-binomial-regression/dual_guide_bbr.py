@@ -4,7 +4,7 @@ import torch
 import argparse
 from count_filtering import filter_counts
 from beta_binomial import generate_features_generic, fit_beta_binom, sgd_optimizer
-from run_bbr import make_bbr_df, get_pvalues_df
+from generate_bbr_outputs import make_bbr_df, get_pvalues_df
 
 
 def matches(s):

@@ -26,12 +26,14 @@ The method requires negative control guides of some form to be included in the e
 
 5. Get output dataframes corresponding to weights (in log2FC space) and p-values.
     - Key functions:
-        - `make_bbr_df` in [run_bbr.py](https://github.com/broadinstitute/beta-binomial-regression/blob/main/beta-binomial-regression/run_bbr.py)
-        - `get_pvalues_df` in [run_bbr.py](https://github.com/broadinstitute/beta-binomial-regression/blob/main/beta-binomial-regression/run_bbr.py)
+        - `adjust_weights_non_targeting` in [generate_bbr_outputs.py](https://github.com/broadinstitute/beta-binomial-regression/blob/main/beta-binomial-regression/generate_bbr_outputs.py)
+            - Note: Run this function to adjust all targeting gene-guide weights to non-targeting weights for each gene, respectively. Non-targeting guides may have a non-zero effect on a gene, reflected in their weights estimate (if "non-targeting" is passed as a column or multiple columns in the features matrix). As the model is built on an intial estimate based on non-targeting cells, non-targeting weights act as an extra intercept that can be subtracted out for more accurate esimates of effect size and p-values, given a poor initial estimation of distributions from the non-targeting guides.
+        - `make_bbr_df` in [generate_bbr_outputs.py](https://github.com/broadinstitute/beta-binomial-regression/blob/main/beta-binomial-regression/generate_bbr_outputs.py)
+        - `get_pvalues_df` in [generate_bbr_outputs.py](https://github.com/broadinstitute/beta-binomial-regression/blob/main/beta-binomial-regression/generate_bbr_outputs.py)
 
 Helpful functions that contain examples of running the model:
 * `main()`: entire workflow function for dual-guide experiment in [dual_guide_bbr.py](https://github.com/broadinstitute/beta-binomial-regression/blob/main/beta-binomial-regression/dual_guide_bbr.py)
-* `run_whole_bbr()`: Steps 3-5 of workflow for low-moi single-guide perturb-seq study. Contains examples of splitting/subsetting the data into smaller gene groups to save memeory. Also, contains an example of using the permutations feature. In [run_bbr.py](https://github.com/broadinstitute/beta-binomial-regression/blob/main/beta-binomial-regression/run_bbr.py)
+* `run_whole_bbr()`: Steps 3-5 of workflow for low-moi single-guide perturb-seq study. Contains examples of splitting/subsetting the data into smaller gene groups to save memeory. Also, contains an example of using the permutations feature. In [bbr_low_moi_example.py](https://github.com/broadinstitute/beta-binomial-regression/blob/main/beta-binomial-regression/bbr_low_moi_example.py)
 
 ## Additional Features
 
