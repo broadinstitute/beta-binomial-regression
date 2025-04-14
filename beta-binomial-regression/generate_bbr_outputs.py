@@ -32,7 +32,7 @@ def make_bbr_df(
     else:
         normalizer = counts.copy()
 
-    sc.pp.normalize_total(normalizer, counts_per_cell_after=1e6)
+    sc.pp.normalize_total(normalizer, target_sum=1e6)
     df = pd.DataFrame(
         normalizer.X.mean(axis=0).T, index=normalizer.var.index, columns=["mean_TPM"]
     )
