@@ -37,7 +37,7 @@ def get_cell_cycles(adata):
     s_genes = cell_cycle_genes[:43]
     g2m_genes = cell_cycle_genes[43:]
     cell_cycle_genes = [x for x in cell_cycle_genes if x in adata.var_names]
-    sc.pp.normalize_per_cell(adata, counts_per_cell_after=1e4)
+    sc.pp.normalize_total(adata, counts_per_cell_after=1e4)
     sc.pp.log1p(adata)
     sc.pp.scale(adata)
     sc.tl.score_genes_cell_cycle(adata, s_genes=s_genes, g2m_genes=g2m_genes)
@@ -152,7 +152,7 @@ def get_cell_cycles(adata):
     s_genes = cell_cycle_genes[:43]
     g2m_genes = cell_cycle_genes[43:]
     cell_cycle_genes = [x for x in cell_cycle_genes if x in adata.var_names]
-    sc.pp.normalize_per_cell(adata, counts_per_cell_after=1e4)
+    sc.pp.normalize_total(adata, counts_per_cell_after=1e4)
     sc.pp.log1p(adata)
     sc.pp.scale(adata)
     if not set(cell_cycle_genes) & set(s_genes) or not set(cell_cycle_genes) & set(g2m_genes):
